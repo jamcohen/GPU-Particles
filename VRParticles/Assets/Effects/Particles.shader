@@ -13,8 +13,8 @@
 		Tags { "RenderType"="Transparent" "Queue"="Transparent"}
 		Blend One One
 		LOD 100
-		ZWrite Off
-		ZWrite Off
+		ZWrite On
+		ZTest LEqual
 
 		Pass
 		{
@@ -45,8 +45,8 @@
 			v2f vert (appdata v)
 			{
 				v2f o;
-				float x = frac(v.uv.x);
-				float y = floor(v.uv.x) / _Resolution;
+				float x = frac(v.uv.x * _Resolution);
+				float y = floor(v.uv.x * _Resolution) / _Resolution;
 				float2 particleCoord = float2(x, y);
 				float3 pos = tex2Dlod(_Position, float4(particleCoord, 0, 0)).xyz;
 				v.vertex.xyz += pos;
@@ -58,7 +58,7 @@
 			fixed4 frag (v2f i) : SV_Target
 			{
 				// sample the texture
-				fixed4 col = fixed4(0.05,0.1,0,0.1);
+				fixed4 col = fixed4(0.005,0.01,0.002,0.1);
 				return col;
 			}
 			ENDCG

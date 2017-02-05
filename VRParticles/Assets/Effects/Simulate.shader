@@ -7,6 +7,7 @@
 		_Noise("Noise", 2D) = "white" {}
 		_AttractPos ("Attract Position", Vector) = (1,1,1,1)
 		_AttractSpeed ("Attract Speed", Float) = 1
+		_PositionScale("Position Scale", Float) = 1
 		_DeltaTime ("Delta Time", Float) = 0
 	}
 	SubShader
@@ -47,6 +48,7 @@
 			float4 _AttractPos;
 			float _AttractSpeed;
 			float _DeltaTime;
+			float _PositionScale;
 
 			v2f vert (appdata v)
 			{
@@ -59,16 +61,17 @@
 			PixelOutput frag(v2f i){
 				float4 posIn = tex2D(_PositionIn, i.uv);
 				float4 velIn = tex2D(_VelocityIn, i.uv);
-				float4 noise = tex2D(_Noise, i.uv);
+				float4 noiseIn = tex2D(_Noise, i.uv);
 
-				float rand = (noise.r + noise.g + noise.b) * 0.33333;
-				float4 attractDir = (_AttractPos - posIn) * rand * _AttractSpeed;
+				float rand = (noiseIn.r + noiseIn.g + noiseIn.b) * 0.33333;
+				float4 attractDir = normalize(_AttractPos - posIn) * _AttractSpeed;
+				//attractDir *= -attractDir;
 
 				float4 vel = velIn + attractDir * _DeltaTime;
 
 				PixelOutput o;
 				o.vel = vel;
-				o.pos = posIn + vel *_DeltaTime;
+				o.pos = (posIn*_PositionScale) + vel *_DeltaTime;
 				return o;
 			}
 			ENDCG

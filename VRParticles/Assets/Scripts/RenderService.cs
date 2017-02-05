@@ -21,18 +21,28 @@ public class RenderService : Service<RenderService> {
         Velocity = new SwappableBuffer(Resolution, Resolution, 0);
         Position = new SwappableBuffer(Resolution, Resolution, 0);
 
-        //MainCam.OnPostRender_evt += Simulate;
-
         Mesh.Resolution = Resolution;
         Mesh.Generate();
-        SimulateMat.SetTexture("_Noise", Mesh.GenerateNoise());
+        var noise = Mesh.GenerateNoise();
+        SimulateMat.SetTexture("_Noise", noise);
+        SimulateMat.SetFloat("_PositionScale", 10.0f);
+        Simulate(noise);
+        SimulateMat.SetFloat("_PositionScale", 1.0f);
     }
 
     //simulates a particle step
     private void Update()
     {
+        Simulate();
+    }
+
+    //Can override position to randomize starting pos
+    private void Simulate(Texture overridePosition=null)
+    {
+        var positionIn = (overridePosition == null) ? Position.Input : overridePosition;
+
         SimulateMat.SetTexture("_VelocityIn", Velocity.Input);
-        SimulateMat.SetTexture("_PositionIn", Position.Input);
+        SimulateMat.SetTexture("_PositionIn", positionIn);
         SimulateMat.SetFloat("_DeltaTime", Time.deltaTime);
         SafeBlit(SimulateMat, Velocity.Output.depthBuffer, Velocity.Output.colorBuffer, Position.Output.colorBuffer);
         ParticleMat.SetTexture("_Position", Position.Output);
