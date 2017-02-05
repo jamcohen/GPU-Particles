@@ -7,6 +7,8 @@ using System.Linq;
 public class ParticleMesh : MonoBehaviour {
     public int Resolution;
     public float Size;
+    public List<MeshFilter> ParticleMeshFilters;
+    private const int UNITY_VERTEX_LIMIT = 65534;
 
     public Texture2D GenerateNoise()
     {
@@ -21,80 +23,81 @@ public class ParticleMesh : MonoBehaviour {
         return noise;
     }
 
-    //Generate a mesh for the particlez
+    //Generate a mesh for the particles
     public void Generate()
     {
         int numParts = Resolution * Resolution;
-        var mesh = new Mesh();
+        var meshes = new List<Mesh>();
 
-        var verts = new Vector3[4 * numParts];
-        var uvs = new Vector3[4 * numParts];
-        var triangles = new int[2 * 3 * numParts];
+        var verts = new List<Vector3>();
+        var uvs = new List<Vector2>();
+        var triangles = new List<int>();
 
-        for (int i = 0; i < uvs.Length; i++)
-        {
-            float x = Mathf.Floor(i / 4f) / Resolution;
-            float y = i;
-            uvs[i] = new Vector2(x,y);
+        for (int i = 0; i<numParts; ++i) {
+            //If our next quad will push us over the unity limit
+            if (verts.Count >= UNITY_VERTEX_LIMIT - 4)
+            {
+                //create the mesh and clear the lists
+                CreateMesh(verts, uvs, triangles);
+            }
+            AddQuad(verts, uvs, triangles, i);
         }
 
-        for (int i = 0; i < verts.Length; i += 4)
-        {
-            verts[i] = new Vector3(-0.5f, 0.5f) * Size;
-            verts[i+1] = new Vector3(0.5f, 0.5f) * Size;
-            verts[i+2] = new Vector3(-0.5f, -0.5f) * Size;
-            verts[i+3] = new Vector3(0.5f, -0.5f) * Size;
-        }
-
-        int currVerts = 0;
-        for (int i=0; i<triangles.Length-5; i += 6)
-        {
-            //first triangle
-            triangles[i] = currVerts;
-            triangles[i + 1] = currVerts + 1;
-            triangles[i + 2] = currVerts + 2;
-
-            //second triangle
-            triangles[i + 5] = currVerts + 1;
-            triangles[i + 4] = currVerts + 2;
-            triangles[i + 3] = currVerts + 3;
-            currVerts += 4;
-        }
-
-        mesh.SetVertices(verts.ToList());
-        mesh.SetUVs(0, uvs.ToList());
-        mesh.SetTriangles(triangles.ToList(), 0);
-
-        GetComponent<MeshFilter>().mesh = mesh;
+        CreateMesh(verts, uvs, triangles);
     }
 
-    public void AddQuad(List<Vector3> verts, List<Vector2> uvs, List<int> triangles)
+    //creates a mesh out of verts, uvs and triangles
+    //then clears those lists
+    public MeshFilter CreateMesh(List<Vector3> verts, List<Vector2> uvs, List<int> triangles)
     {
-        for (int i = 0; i < uvs.Length; i++)
+        var mesh = new Mesh();
+        mesh.SetVertices(verts);
+        mesh.SetUVs(0, uvs);
+        mesh.SetTriangles(triangles, 0);
+
+        verts.Clear();
+        uvs.Clear();
+        triangles.Clear();
+
+        GameObject meshObj = new GameObject();
+        meshObj.name = "ParticleMesh";
+        var renderer = meshObj.AddComponent<MeshRenderer>();
+        renderer.sharedMaterial = GetComponent<MeshRenderer>().sharedMaterial; //copy mesh renderer
+        var filter = meshObj.AddComponent<MeshFilter>();
+        filter.mesh = mesh;
+        meshObj.transform.SetParent(transform, false);
+
+        return filter;
+    }
+
+    public void AddQuad(List<Vector3> verts, List<Vector2> uvs, List<int> triangles, int particleIndex)
+    {
+        int numParticles = (Resolution * Resolution);
+        int currentVerts = verts.Count;
+        int currentTris = triangles.Count;
+
+        for (int i = 0; i < 4; i++)
         {
-            float x = Mathf.Floor(i / 4f) / Resolution;
-            float y = i;
-            uvs[i] = new Vector2(x, y);
+            var globalIndex = particleIndex + i;
+            float x = (float)particleIndex / numParticles; //x is a per particle/quad identifier
+            float y = globalIndex / numParticles; //y is a per vertex identifier
+            uvs.Add(new Vector2(x, y));
         }
 
-        for (int i = 0; i < verts.Length; i += 4)
-        {
-            verts[i] = new Vector3(-0.5f, 0.5f) * Size;
-            verts[i + 1] = new Vector3(0.5f, 0.5f) * Size;
-            verts[i + 2] = new Vector3(-0.5f, -0.5f) * Size;
-            verts[i + 3] = new Vector3(0.5f, -0.5f) * Size;
-        }
+        verts.Add(new Vector3(-0.5f, 0.5f) * Size); //top left
+        verts.Add(new Vector3(0.5f, 0.5f) * Size); //top right
+        verts.Add(new Vector3(-0.5f, -0.5f) * Size); //bottom left
+        verts.Add(new Vector3(0.5f, -0.5f) * Size); // bottom right
 
         //first triangle
-        triangles[i] = currVerts;
-        triangles[i + 1] = currVerts + 1;
-        triangles[i + 2] = currVerts + 2;
+        triangles.Add(currentVerts);
+        triangles.Add(currentVerts + 1);
+        triangles.Add(currentVerts + 2);
 
         //second triangle
-        triangles[i + 5] = currVerts + 1;
-        triangles[i + 4] = currVerts + 2;
-        triangles[i + 3] = currVerts + 3;
-        currVerts += 4;
+        triangles.Add(currentVerts + 3);
+        triangles.Add(currentVerts + 2);
+        triangles.Add(currentVerts + 1);
     }
 
 
